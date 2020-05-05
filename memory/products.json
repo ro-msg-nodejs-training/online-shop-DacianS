@@ -1,0 +1,26 @@
+[
+    {
+        "id": 0,
+        "name": "Notebook Basic 15",
+        "description": "description[0]",
+        "category": 0,
+        "price": 956,
+        "weight": 11
+    },
+    {
+        "id": 1,
+        "name": "Notebook Basic 17",
+        "description": "description[1]",
+        "category": 0,
+        "price": 1249,
+        "weight": 11
+    },
+    {
+        "id": 2,
+        "name": "Notebook Basic 17",
+        "description": "description[1]",
+        "category": 1,
+        "price": 1249,
+        "weight": 11
+    }
+]
