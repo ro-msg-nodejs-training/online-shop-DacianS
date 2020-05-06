@@ -1,73 +1,147 @@
 /* eslint-disable no-undef */
-//import express from 'express';
-//import product from '../data/product'
-//import productList from '../memory/products.json'
-var productList = require('../memory/products.json')
-var categories = require('../memory/category.json')
+let dataBase = require('../data/database');
+var singleton = require('../util/singleton')
 var express = require('express');
+var Promise = require('promise')
 var router = express.Router();
-
-let nextId = Math.max.apply(Math, Object.keys(productList).map(n => parseInt(n, 10))) + 1;
-
-function copy(id, { name, description, category, price, weight }) {
-    return { id, name, description, category, price, weight };
-}
-
-router.get('/', function (req, res) {
-    res.send(productList);
+let CategoryModel = require('../data/models/category')
+let cat = new CategoryModel({
+    Name: 'Category',
+    Description: 'CategoryDesc'
 })
 
-router.get('/product/:id', function (req, res) {
-    if (productList.hasOwnProperty(req.params.id)) {
-        res.send(productList[req.params.id])
+var client = singleton.getInstance().client;
+
+cat.save()
+    .then(doc => {
+        console.log(doc)
+    })
+    .catch(err => {
+        console.error(err)
+    });
+
+
+router.get('/', async (req, res, next) => {
+    try {
+        client.db("OnlineShop").collection("Person").find({}).toArray()
+            .then(result => {
+                console.log(result);
+                res.send(result);
+            })
     }
-    else
-        res.sendStatus(404);
+    catch (err) {
+        next(err);
+    }
 })
 
-router.get('/pbc/:category', function (req, res) {
-    if (productList.hasOwnProperty(req.params.category)) {
-        let productsArray = [];
-        productList.forEach(async function (product) {
-            if (product.category == parseInt(req.params.category)) {
-                productsArray.push(product);
-            }
+router.get('/product/:id_prod', function (req, res) {
+    try {
+        client.db("OnlineShop").collection("Person").find({
+            id_prod: parseInt(req.params.id_prod)
+        }).toArray()
+            .then(result => {
+                console.log(result);
+                res.send(result);
+            })
+    }
+    catch (err) {
+        next(err);
+    }
+})
+
+router.get('/pbc/:category', async (req, res, next) => {
+    try {
+        client.db("OnlineShop").collection("Person").find({
+            "Category.id_cat": parseInt(req.params.category)
+        }).toArray()
+            .then(result => {
+                console.log(result);
+                res.send(result);
+            })
+    }
+    catch (err) {
+        next(err);
+    }
+})
+
+
+router.get('/category', async (req, res, next) => {
+    try {
+        client.db("OnlineShop").collection("Person").find({}, { projection: { _id: 0, Category: 1 } }).toArray()
+            .then(result => {
+                console.log(result);
+                res.send(result);
+            })
+    }
+    catch (err) {
+        next(err);
+    }
+})
+
+router.get('/supplier', async (req, res, next) => {
+    try {
+        client.db("OnlineShop").collection("Person").find({}, { projection: { _id: 0, Supplier: 1 } }).toArray()
+            .then(result => {
+                console.log(result);
+                res.send(result);
+            })
+    }
+    catch (err) {
+        next(err);
+    }
+})
+
+
+router.delete('/product/:id_prod', function (req, res) {
+    try {
+        client.db("OnlineShop").collection("Person").deleteOne({
+            id_prod: parseInt(req.params.id_prod)
         })
-        res.send(productsArray)
+            .then(result => {
+                res.sendStatus(204);
+            })
     }
-    else
+    catch (err) {
         res.sendStatus(404);
-})
-
-router.get('/category', function (req, res) {
-    res.send(categories)
-
-})
-
-router.delete('/product/:id', function (req, res) {
-    if (productList.hasOwnProperty(req.params.id)) {
-        delete productList[req.params.id];
-        productList = productList.filter(function (el) {
-            return el != null;
-        })
-        res.sendStatus(204);
     }
-    else
-        res.sendStatus(404);
 })
 
 router.post('/', function (req, res) {
-    const id = nextId++;
-    const product = copy(id, req.body || {});
-    productList[id] = product;
-    res.send(product);
+    try {
+        client.db("OnlineShop").collection("Person").insertOne(req.body)
+            .then(result => {
+                res.sendStatus(204);
+            })
+    }
+    catch (err) {
+        res.sendStatus(404);
+    }
 })
 
-router.put('/product/:id', function (req, res) {
-    if (productList.hasOwnProperty(req.params.id)) {
-        productList[req.params.id] = copy(req.params.id, req.body || {});
-        res.sendStatus(204);
-    } else {
+router.put('/product/:id_prod', function (req, res) {
+    try {
+        client.db("OnlineShop").collection("Person").findOneAndUpdate(
+            { id_prod: parseInt(req.params.id_prod) },
+            {
+                $set: {
+                    id_prod: req.body.id_prod,
+                    Name: req.body.Name,
+                    Description: req.body.Description,
+                    Price: req.body.Price,
+                    Weight: req.body.Weight,
+                    Category: req.body.Category,
+                    Supplier: req.body.Supplier,
+                    ImageUrl: req.body.ImageUrl
+                }
+            },
+            {
+                upsert: true
+            })
+            .then(result => {
+                res.sendStatus(204);
+            })
+    }
+    catch (err) {
         res.sendStatus(404);
     }
 });
