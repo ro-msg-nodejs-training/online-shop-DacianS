@@ -4,6 +4,8 @@ var singleton = require('../util/singleton')
 var express = require('express');
 var Promise = require('promise')
 var router = express.Router();
+var Stream = require('stream')
+var fs = require('fs');
 let CategoryModel = require('../data/models/category')
 let cat = new CategoryModel({
     Name: 'Category',
@@ -78,6 +80,20 @@ router.get('/category', async (req, res, next) => {
     }
 })
 
+router.get('/getProductImage/:id_prod', async (req, res, next) => {
+    try {
+        client.db("OnlineShop").collection("Person").findOne({ id_prod: parseInt(req.params.id_prod) }, function (err, data) {
+            var stream = fs.createWriteStream("output.jpg");
+            stream.write(data.image.buffer)
+            res.sendStatus(204);
+        });
+
+    }
+    catch (err) {
+        next(err);
+    }
+})
+
 router.get('/supplier', async (req, res, next) => {
     try {
         client.db("OnlineShop").collection("Person").find({}, { projection: { _id: 0, Supplier: 1 } }).toArray()
@@ -93,6 +109,23 @@ router.get('/supplier', async (req, res, next) => {
 
 
 router.delete('/product/:id_prod', function (req, res) {
+    var imageName;
+    try {
+        client.db("OnlineShop").collection("Person").find({
+            id_prod: parseInt(req.params.id_prod)
+        }, { projection: { _id: 0, imageName: 1 } }).toArray()
+            .then(result => {
+                imageName = result[0].imageName;
+                fs.unlink(__dirname + "\\tmp\\" + imageName + ".jpg", (err) => {
+                    if (err) {
+                        console.log(err);
+                    }
+                });
+            })
+    }
+    catch (err) {
+        res.sendStatus(404);
+    }
     try {
         client.db("OnlineShop").collection("Person").deleteOne({
             id_prod: parseInt(req.params.id_prod)
@@ -104,6 +137,7 @@ router.delete('/product/:id_prod', function (req, res) {
     catch (err) {
         res.sendStatus(404);
     }
+
 })
 
 router.post('/', function (req, res) {
@@ -145,5 +179,64 @@ router.put('/product/:id_prod', function (req, res) {
         res.sendStatus(404);
     }
 });
+
+
+router.post('/upload/:img/:id_prod', function (req, res) {
+    fs.readFile(__dirname + "\\tmp\\" + req.params.img + ".jpg", function (err, data) {
+        if (err) throw err;
+        console.log(data);
+        try {
+            client.db("OnlineShop").collection("Person").findOneAndUpdate(
+                { id_prod: parseInt(req.params.id_prod) },
+                {
+                    $set: {
+                        imageName: req.params.img,
+                        image: data
+                    }
+                },
+                {
+                    upsert: true
+                })
+                .then(result => {
+                    res.sendStatus(204);
+                })
+        }
+        catch (err) {
+            res.sendStatus(404);
+        }
+    })
+})
+
+router.post('/removeimage/:id_prod', function (req, res) {
+    try {
+        client.db("OnlineShop").collection("Person").findOneAndUpdate(
+            { id_prod: parseInt(req.params.id_prod) },
+            {
+                $unset: {
+                    image: ""
+                }
+            },
+            {
+                upsert: true
+            })
+            .then(result => {
+                res.sendStatus(204);
+            })
+    }
+    catch (err) {
+        res.sendStatus(404);
+    }
+})
+
+router.get("/allImages", function (req, res) {
+    const tmpFolder = __dirname + "\\tmp\\";
+    fs.readdir(tmpFolder, function (err, data) {
+        if (err) throw err;
+        data.forEach(img => {
+            console.log(img);
+        })
+    })
+    res.sendStatus(204);
+})
 
 module.exports = router;
